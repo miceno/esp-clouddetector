@@ -10,3 +10,4 @@ For sensors:
 For utilities:
 * [Serial Commands](https://github.com/shyd/Arduino-SerialCommand). Allows the common pattern of parsing 
 and executing command over serial line.
+* [Base64 encoding](https://github.com/dojyorin/arduino_base64)

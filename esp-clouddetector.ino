@@ -1,6 +1,7 @@
 #include <Adafruit_MLX90640.h>
 #include <SerialCommand.h>
 #include "DHT.h"
+#include "arduino_base64.hpp"
 
 /*
 Author: Orestes Sanchez <miceno.atreides@gmail.com>
@@ -163,6 +164,45 @@ void show_median(float *frame) {
   Serial.println();
 }
 
+char *encode_base64(uint8_t *data, int size) {
+  auto output_size = base64::encodeLength(size);
+  char *output = (char *)malloc(output_size);
+  Serial.printf("input size: %d\n", size);
+  base64::encode(data, size, output);
+  Serial.printf("encoded size: %d\n", output_size);
+  return output;
+}
+
+void send_base64_encode(uint8_t *data, int size) {
+  char *output = encode_base64(data, size);
+  Serial.println(output);
+  free(output);
+}
+
+void *decode_base64(char *input) {
+  auto output_size = base64::decodeLength(input);
+  uint8_t *output = (uint8_t *)malloc(output_size);
+  Serial.printf("input size: %d\n", strlen(input));
+  base64::decode(input, output);
+  Serial.printf("decoded size: %d\n", output_size);
+  return output;
+}
+
+void test_base64_encode(uint8_t *data, int size) {
+  char *output = encode_base64(data, size);
+
+  void *test = decode_base64(output);
+  if (memcmp(test, frame, size) == 0) {
+    Serial.println("OK: Encoding and decoding");
+  } else {
+    Serial.println("ERROR: Encoding and decoding");
+  }
+
+  free(output);
+  free(test);
+}
+
+
 void loopMlx() {
   if (start_mlx) {
     if (mlx && mlx->getFrame(frame) == 0) {
@@ -209,6 +249,8 @@ void setupSerialCommands() {
   // Setup callbacks for SerialCommand commands
   sCmd.addCommand("READ", send_data);               // Read summarized sensor data
   sCmd.addCommand("IR", send_ir_image);             // Return IR data as a stream of float values
+  sCmd.addCommand("IRX", send_irx_image);           // Return IR data as a stream of float values
+  sCmd.addCommand("IRT", send_irt_image);           // Test IR binary encoding and decoding
   sCmd.addCommand("PING", show_ping);               // Echo current version
   sCmd.addCommand("START", start_data_collection);  // Start data collection
   sCmd.addCommand("STOP", stop_data_collection);    // Stop data collection
@@ -300,12 +342,29 @@ void send_data() {
 }
 
 /*
-  Send raw IR data over the serial line.
+  Send raw IR as ASCII data over the serial line.
 */
 void send_ir_image() {
   Serial.print("ir:");
   show_frame(frame);
 }
+
+/*
+  Send raw IR as binary data over the serial line.
+*/
+void send_irx_image() {
+  Serial.print("irx:");
+  send_base64_encode((uint8_t *)frame, sizeof(float) * frame_size);
+}
+
+/*
+  Test IR image encoding and decoding
+*/
+void send_irt_image() {
+  Serial.print("irt:");
+  test_base64_encode((uint8_t *)frame, sizeof(float) * frame_size);
+}
+
 
 /*
   Show status data over the serial line.

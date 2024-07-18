@@ -167,9 +167,9 @@ void show_median(float *frame) {
 char *encode_base64(uint8_t *data, int size) {
   auto output_size = base64::encodeLength(size);
   char *output = (char *)malloc(output_size);
-  Serial.printf("input size: %d\n", size);
+  // Serial.printf("input size: %d\n", size);
   base64::encode(data, size, output);
-  Serial.printf("encoded size: %d\n", output_size);
+  // Serial.printf("encoded size: %d\n", output_size);
   return output;
 }
 
@@ -182,9 +182,9 @@ void send_base64_encode(uint8_t *data, int size) {
 void *decode_base64(char *input) {
   auto output_size = base64::decodeLength(input);
   uint8_t *output = (uint8_t *)malloc(output_size);
-  Serial.printf("input size: %d\n", strlen(input));
+  // Serial.printf("input size: %d\n", strlen(input));
   base64::decode(input, output);
-  Serial.printf("decoded size: %d\n", output_size);
+  // Serial.printf("decoded size: %d\n", output_size);
   return output;
 }
 

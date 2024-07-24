@@ -428,7 +428,6 @@ void show_ping() {
   Serial.print(",hum=");
   Serial.print(humidity);
   show_mlx_status();
-  Serial.println();
 }
 
 /*

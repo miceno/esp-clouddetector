@@ -378,8 +378,9 @@ char *compress_irb_image(uint8_t *data, size_t size){
   size_t comp_size = 0;
 
   mlzw_compress_binary(data, size, compressed, &comp_size, LZW_DICT_SIZE);
-
+  Serial.printf("comp_size=%d ", comp_size);
   char *msg_base64 = encode_base64(compressed, comp_size);
+  Serial.printf("base64_size=%d ", strlen(msg_base64));
   return msg_base64;
 }
 /*

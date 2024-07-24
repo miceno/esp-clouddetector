@@ -2,6 +2,7 @@
 #include <SerialCommand.h>
 #include "DHT.h"
 #include "arduino_base64.hpp"
+#include "microlzw.h"
 
 /*
 Author: Orestes Sanchez <miceno.atreides@gmail.com>
@@ -23,6 +24,9 @@ DHT dht(DHTPIN, DHTTYPE);
 const int IR_IMAGE_COLS = 32;
 const int IR_IMAGE_ROWS = 24;
 const int frame_size = IR_IMAGE_COLS * IR_IMAGE_ROWS;
+
+// Compression dict size
+const int LZW_DICT_SIZE = 1024;
 
 const char *VERSION = "cloud-0.2.0";
 
@@ -174,12 +178,9 @@ char *encode_base64(uint8_t *data, int size) {
 }
 
 void send_base64_encode(uint8_t *data, int size) {
-  char *output = encode_base64(data, size);
-  char compressed[size];
-  mlzw_compress((char*)output, compressed, &comp_size, dict_size);
-
-  Serial.println(output);
-  free(output);
+  char *msg_base64 = encode_base64(data, size);
+  Serial.println(msg_base64);
+  free(msg_base64);
 }
 
 void *decode_base64(char *input) {
@@ -252,7 +253,8 @@ void setup_serial_commands() {
   // Setup callbacks for SerialCommand commands
   sCmd.addCommand("READ", send_data);               // Read summarized sensor data
   sCmd.addCommand("IR", send_ir_image);             // Return IR data as a stream of float values
-  sCmd.addCommand("IRX", send_irx_image);           // Return IR data as a stream of float values
+  sCmd.addCommand("IRX", send_irx_image);           // Return IR data as a base64 stream
+  sCmd.addCommand("IRB", send_irb_image);           // Return IR data as a base64 lzw-compressed stream
   sCmd.addCommand("IRT", send_irt_image);           // Test IR binary encoding and decoding
   sCmd.addCommand("PING", show_ping);               // Echo current version
   sCmd.addCommand("START", start_data_collection);  // Start data collection
@@ -358,8 +360,28 @@ void send_ir_image() {
 void send_irx_image() {
   Serial.print("irx:");
   send_base64_encode((uint8_t *)frame, sizeof(float) * frame_size);
+  
 }
 
+/*
+  Send raw IR as binary data over the serial line.
+*/
+void send_irb_image(){
+  Serial.print("irb:");
+  char *msg_base64 = compress_irb_image((uint8_t *)frame, sizeof(float) * frame_size);
+  Serial.println(msg_base64);
+  free(msg_base64);
+}
+
+char *compress_irb_image(uint8_t *data, size_t size){
+  uint8_t compressed[size];
+  size_t comp_size = 0;
+
+  mlzw_compress_binary(data, size, compressed, &comp_size, LZW_DICT_SIZE);
+
+  char *msg_base64 = encode_base64(compressed, comp_size);
+  return msg_base64;
+}
 /*
   Test IR image encoding and decoding
 */

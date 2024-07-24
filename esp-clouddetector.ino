@@ -13,6 +13,7 @@ typedef void (*cmd_callback_t)();
 typedef struct {
   const char *name;
   cmd_callback_t callback;
+  const char *description;
 } command_entry_t;
 
 
@@ -36,7 +37,7 @@ const int frame_size = IR_IMAGE_COLS * IR_IMAGE_ROWS;
 // Compression dict size
 const int LZW_DICT_SIZE = 1024;
 
-const char *VERSION = "cloud-0.2.0";
+const char *VERSION = "cloud-0.3.0";
 
 // Internal variables for the status of the detector.
 float frame[frame_size];  // buffer for full frame of temperatures
@@ -74,15 +75,15 @@ Adafruit_MLX90640 *setup_mlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
 }
 
 command_entry_t COMMANDS[] = {
-  { "READ", send_data },
-  { "IR", send_ir_image },
-  { "IRX", send_irx_image },
-  { "IRB", send_irb_image },
-  { "IRT", send_irt_image },
-  { "PING", show_ping },
-  { "START", start_data_collection },
-  { "STOP", stop_data_collection },
-  { "HELP", show_help }
+  {"READ", send_data, "Read summarized sensor data"},
+  {"IR", send_ir_image, "Return IR data as a stream of float values"},
+  {"IRX", send_irx_image, "Return IR data as a base64 stream"},
+  {"IRB", send_irb_image, "Return IR data as a base64 lzw-compressed stream"},
+  {"IRT", send_irt_image, "Test IR binary encoding and decoding"},
+  {"PING", show_ping, "Echo current version"},
+  {"START", start_data_collection, "Start data collection"},
+  {"STOP", stop_data_collection, "Stop data collection"},
+  { "HELP", show_help, "Show available commands" }
 };
 
 size_t MAX_COMMANDS = sizeof(COMMANDS) / sizeof(COMMANDS[0]);
@@ -435,7 +436,10 @@ void show_ping() {
 */
 void show_help() {
   show_ping();
-
+  for(int i=0; i<MAX_COMMANDS; i++){
+    command_entry_t command = COMMANDS[i];
+    Serial.printf("%s: %s\n", command.name, command.description);
+  }
   Serial.println();
 }
 

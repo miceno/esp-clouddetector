@@ -45,7 +45,7 @@ boolean start_day = true;
 /*
   MLX 90640 code
 */
-Adafruit_MLX90640 *setupMlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
+Adafruit_MLX90640 *setup_mlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
                             mlx90640_resolution_t p_resolution = MLX90640_ADC_18BIT,
                             mlx90640_refreshrate_t p_refresh_rate = MLX90640_2_HZ) {
   if (!mlx->begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
@@ -108,7 +108,7 @@ void show_mlx_data() {
 }
 
 // Function for calculating median
-double Median(float *v, int n) {
+double calculate_median(float *v, int n) {
   // Sort the vector
   qsort(v, n, sizeof(float), compare_floats);
 
@@ -156,7 +156,7 @@ void show_frame(float *frame) {
 }
 
 void show_median(float *frame) {
-  float median = Median(frame, frame_size);
+  float median = calculate_median(frame, frame_size);
 
   Serial.print("Median frame temperature = ");
   Serial.print(median);
@@ -206,7 +206,7 @@ void test_base64_encode(uint8_t *data, int size) {
 }
 
 
-void loopMlx() {
+void loop_mlx() {
   if (start_mlx) {
     if (mlx && mlx->getFrame(frame) == 0) {
       // show_median(frame);
@@ -222,11 +222,11 @@ void loopMlx() {
   DHT code
 */
 
-void setupDHT() {
+void setup_dht() {
   dht.begin();
 }
 
-void loopDHT() {
+void loop_dht() {
   if (start_dht) {
     read_data();
   }
@@ -248,7 +248,7 @@ void read_data() {
 /*
   Serial commands
 */
-void setupSerialCommands() {
+void setup_serial_commands() {
   // Setup callbacks for SerialCommand commands
   sCmd.addCommand("READ", send_data);               // Read summarized sensor data
   sCmd.addCommand("IR", send_ir_image);             // Return IR data as a stream of float values
@@ -311,7 +311,7 @@ void stop_data_collection() {
   }
 }
 
-void loopSerialCommands() {
+void loop_serial_commands() {
   sCmd.readSerial();  // We don't do much, just process serial commands
 }
 
@@ -330,7 +330,7 @@ void unrecognized(const char *command) {
 */
 void send_data() {
   Serial.print("cloud:");
-  float median = Median(frame, frame_size);
+  float median = calculate_median(frame, frame_size);
   Serial.print(median);
 
   Serial.print(",temp:");
@@ -353,7 +353,7 @@ void send_ir_image() {
 }
 
 /*
-  Send raw IR as binary data over the serial line.
+  Send raw IR as base64 data over the serial line.
 */
 void send_irx_image() {
   Serial.print("irx:");
@@ -376,7 +376,7 @@ void show_ping() {
   Serial.print(VERSION);
   Serial.printf(",dht=%d,mlx=%d,day=%d", start_dht, start_mlx, start_day);
   Serial.print(",cloud=");
-  Serial.print(Median(frame, frame_size));
+  Serial.print(calculate_median(frame, frame_size));
   Serial.print(",temp=");
   Serial.print(temp);
   Serial.print(",hum=");
@@ -388,7 +388,7 @@ void show_ping() {
 /*
   Serial setup
 */
-void setupSerial() {
+void setup_serial() {
   Serial.begin(115200);
   Serial.println();
   Serial.print("Waiting for Serial line");
@@ -400,17 +400,17 @@ void setupSerial() {
 }
 
 void setup() {
-  setupSerial();
+  setup_serial();
   delay(50);
-  setupDHT();
+  setup_dht();
   delay(50);
-  setupMlx();
-  setupSerialCommands();
+  setup_mlx();
+  setup_serial_commands();
 }
 
 void loop() {
   delay(50);
-  loopDHT();
-  loopMlx();
-  loopSerialCommands();
+  loop_dht();
+  loop_mlx();
+  loop_serial_commands();
 }

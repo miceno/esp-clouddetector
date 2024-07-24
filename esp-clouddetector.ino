@@ -175,9 +175,6 @@ char *encode_base64(uint8_t *data, int size) {
 
 void send_base64_encode(uint8_t *data, int size) {
   char *output = encode_base64(data, size);
-  char compressed[size];
-  mlzw_compress((char*)output, compressed, &comp_size, dict_size);
-
   Serial.println(output);
   free(output);
 }

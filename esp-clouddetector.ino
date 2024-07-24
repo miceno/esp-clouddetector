@@ -8,6 +8,14 @@
 Author: Orestes Sanchez <miceno.atreides@gmail.com>
 */
 
+typedef void (*cmd_callback_t)();
+
+typedef struct {
+  const char *name;
+  cmd_callback_t callback;
+} command_entry_t;
+
+
 #define DHTPIN D6      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22  // DHT 22  (AM2302), AM2321
 
@@ -50,8 +58,8 @@ boolean start_day = true;
   MLX 90640 code
 */
 Adafruit_MLX90640 *setup_mlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
-                            mlx90640_resolution_t p_resolution = MLX90640_ADC_18BIT,
-                            mlx90640_refreshrate_t p_refresh_rate = MLX90640_2_HZ) {
+                             mlx90640_resolution_t p_resolution = MLX90640_ADC_18BIT,
+                             mlx90640_refreshrate_t p_refresh_rate = MLX90640_2_HZ) {
   if (!mlx->begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
     Serial.println("MLX90640 not found!");
     return NULL;
@@ -64,6 +72,18 @@ Adafruit_MLX90640 *setup_mlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
 
   return mlx;
 }
+
+command_entry_t COMMANDS[] = {
+  { "READ", send_data },
+  { "IR", send_ir_image },
+  { "IRX", send_irx_image },
+  { "IRB", send_irb_image },
+  { "IRT", send_irt_image },
+  { "PING", show_ping },
+  { "START", start_data_collection },
+  { "STOP", stop_data_collection },
+  { "HELP", show_help }
+};
 
 void show_mlx_status() {
   Serial.print(",mlx_serial=");
@@ -250,16 +270,13 @@ void read_data() {
   Serial commands
 */
 void setup_serial_commands() {
+  size_t MAX_COMMANDS = sizeof(COMMANDS) / sizeof(COMMANDS[0]);
   // Setup callbacks for SerialCommand commands
-  sCmd.addCommand("READ", send_data);               // Read summarized sensor data
-  sCmd.addCommand("IR", send_ir_image);             // Return IR data as a stream of float values
-  sCmd.addCommand("IRX", send_irx_image);           // Return IR data as a base64 stream
-  sCmd.addCommand("IRB", send_irb_image);           // Return IR data as a base64 lzw-compressed stream
-  sCmd.addCommand("IRT", send_irt_image);           // Test IR binary encoding and decoding
-  sCmd.addCommand("PING", show_ping);               // Echo current version
-  sCmd.addCommand("START", start_data_collection);  // Start data collection
-  sCmd.addCommand("STOP", stop_data_collection);    // Stop data collection
-  sCmd.setDefaultHandler(unrecognized);             // Handler for command that isn't matched  (says "NACK")
+  for (int i = 0; i < MAX_COMMANDS; i++) {
+    sCmd.addCommand(COMMANDS[i].name, COMMANDS[i].callback);  // Read summarized sensor data
+  }
+
+  sCmd.setDefaultHandler(unrecognized);  // Handler for command that isn't matched  (says "NACK")
   show_ping();
 }
 
@@ -360,21 +377,20 @@ void send_ir_image() {
 void send_irx_image() {
   Serial.print("irx:");
   send_base64_encode((uint8_t *)frame, sizeof(float) * frame_size);
-  
 }
 
 /*
   Send raw IR as binary data over the serial line.
 */
-void send_irb_image(){
+void send_irb_image() {
   Serial.print("irb:");
   char *msg_base64 = compress_irb_image((uint8_t *)frame, sizeof(float) * frame_size);
   Serial.println(msg_base64);
   free(msg_base64);
 }
 
-char *compress_irb_image(uint8_t *data, size_t size){
-  uint8_t *compressed = (uint8_t*)malloc(size);
+char *compress_irb_image(uint8_t *data, size_t size) {
+  uint8_t *compressed = (uint8_t *)malloc(size);
   size_t comp_size = 0;
 
   // Serial.printf("size=%d\n", size);
@@ -383,7 +399,7 @@ char *compress_irb_image(uint8_t *data, size_t size){
   char *msg_base64 = encode_base64(compressed, comp_size);
   free(compressed);
   Serial.print("ratio=");
-  Serial.print(1.0*comp_size/size * 100.0);
+  Serial.print(1.0 * comp_size / size * 100.0);
   Serial.print(" ");
   // Serial.printf("base64_size=%d ", strlen(msg_base64));
   return msg_base64;
@@ -410,6 +426,15 @@ void show_ping() {
   Serial.print(",hum=");
   Serial.print(humidity);
   show_mlx_status();
+  Serial.println();
+}
+
+/*
+  Show available commands
+*/
+void show_help() {
+  show_ping();
+
   Serial.println();
 }
 

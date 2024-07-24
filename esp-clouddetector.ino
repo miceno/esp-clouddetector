@@ -85,6 +85,8 @@ command_entry_t COMMANDS[] = {
   { "HELP", show_help }
 };
 
+size_t MAX_COMMANDS = sizeof(COMMANDS) / sizeof(COMMANDS[0]);
+
 void show_mlx_status() {
   Serial.print(",mlx_serial=");
   Serial.print(mlx->serialNumber[0], HEX);
@@ -270,7 +272,6 @@ void read_data() {
   Serial commands
 */
 void setup_serial_commands() {
-  size_t MAX_COMMANDS = sizeof(COMMANDS) / sizeof(COMMANDS[0]);
   // Setup callbacks for SerialCommand commands
   for (int i = 0; i < MAX_COMMANDS; i++) {
     sCmd.addCommand(COMMANDS[i].name, COMMANDS[i].callback);  // Read summarized sensor data

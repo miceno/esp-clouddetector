@@ -61,7 +61,7 @@ Adafruit_MLX90640 *setupMlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
   return mlx;
 }
 
-void showMlxStatus() {
+void show_mlx_status() {
   Serial.print(",mlx_serial=");
   Serial.print(mlx->serialNumber[0], HEX);
   Serial.print(mlx->serialNumber[1], HEX);
@@ -97,7 +97,7 @@ void showMlxStatus() {
   Serial.println();
 }
 
-void showMlxData() {
+void show_mlx_data() {
   Serial.println("===================================");
   Serial.print("MLX Ambient temperature = ");
   Serial.print(mlx->getTa(false));  // false = no new frame capture
@@ -175,6 +175,9 @@ char *encode_base64(uint8_t *data, int size) {
 
 void send_base64_encode(uint8_t *data, int size) {
   char *output = encode_base64(data, size);
+  char compressed[size];
+  mlzw_compress((char*)output, compressed, &comp_size, dict_size);
+
   Serial.println(output);
   free(output);
 }
@@ -378,7 +381,7 @@ void show_ping() {
   Serial.print(temp);
   Serial.print(",hum=");
   Serial.print(humidity);
-  showMlxStatus();
+  show_mlx_status();
   Serial.println();
 }
 

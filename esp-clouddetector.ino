@@ -374,13 +374,18 @@ void send_irb_image(){
 }
 
 char *compress_irb_image(uint8_t *data, size_t size){
-  uint8_t compressed[size];
+  uint8_t *compressed = (uint8_t*)malloc(size);
   size_t comp_size = 0;
 
+  // Serial.printf("size=%d\n", size);
   mlzw_compress_binary(data, size, compressed, &comp_size, LZW_DICT_SIZE);
-  Serial.printf("comp_size=%d ", comp_size);
+  // Serial.printf("comp_size=%d ", comp_size);
   char *msg_base64 = encode_base64(compressed, comp_size);
-  Serial.printf("base64_size=%d ", strlen(msg_base64));
+  free(compressed);
+  Serial.print("ratio=");
+  Serial.print(1.0*comp_size/size * 100.0);
+  Serial.print(" ");
+  // Serial.printf("base64_size=%d ", strlen(msg_base64));
   return msg_base64;
 }
 /*

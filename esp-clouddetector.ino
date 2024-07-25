@@ -88,14 +88,15 @@ Adafruit_MLX90640 *setup_mlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
 }
 
 command_entry_t COMMANDS[] = {
-  {"READ", send_data, "Read summarized sensor data"},
-  {"IR", send_ir_image, "Return IR data as a stream of float values"},
-  {"IRX", send_irx_image, "Return IR data as a base64 stream"},
-  {"IRB", send_irb_image, "Return IR data as a base64 lzw-compressed stream"},
-  {"IRT", send_irt_image, "Test IR binary encoding and decoding"},
-  {"PING", show_ping, "Echo current version"},
-  {"START", start_data_collection, "Start data collection"},
-  {"STOP", stop_data_collection, "Stop data collection"},
+  { "READ", send_data, "Read summarized sensor data" },
+  { "IR", send_ir_image, "Return IR data as a stream of float values" },
+  { "IRX", send_irx_image, "Return IR data as a base64 stream" },
+  { "IRB", send_irb_image, "Return IR data as a base64 lzw-compressed stream" },
+  { "IRBT", send_irbt_image, "Test IR data as a base64 lzw-compressed stream" },
+  { "IRT", send_irt_image, "Test IR binary encoding and decoding" },
+  { "PING", show_ping, "Echo current version" },
+  { "START", start_data_collection, "Start data collection" },
+  { "STOP", stop_data_collection, "Stop data collection" },
   { "HELP", show_help, "Show available commands" }
 };
 
@@ -416,15 +417,15 @@ char *compress_irb_image(uint8_t *data, size_t size) {
   uint8_t *compressed = (uint8_t *)malloc(size);
   size_t comp_size = 0;
 
-  // Serial.printf("size=%d\n", size);
+  Serial.printf("size=%d,", size);
   mlzw_compress_binary(data, size, compressed, &comp_size, LZW_DICT_SIZE);
-  // Serial.printf("comp_size=%d ", comp_size);
+  Serial.printf("comp_size=%d,", comp_size);
   char *msg_base64 = encode_base64(compressed, comp_size);
   free(compressed);
   Serial.print("ratio=");
   Serial.print(1.0 * comp_size / size * 100.0);
-  Serial.print(" ");
-  // Serial.printf("base64_size=%d ", strlen(msg_base64));
+  Serial.print(",");
+  Serial.printf("base64_size=%d,", strlen(msg_base64));
   return msg_base64;
 }
 
@@ -497,7 +498,7 @@ void show_ping() {
 */
 void show_help() {
   show_ping();
-  for(int i=0; i<MAX_COMMANDS; i++){
+  for (int i = 0; i < MAX_COMMANDS; i++) {
     command_entry_t command = COMMANDS[i];
     Serial.printf("%s: %s\n", command.name, command.description);
   }

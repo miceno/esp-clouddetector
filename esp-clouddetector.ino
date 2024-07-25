@@ -1,9 +1,15 @@
+#include <Arduino.h>
 #include <Adafruit_MLX90640.h>
+
+// Import it before including SerialCommand.h
+#define SERIALCOMMAND_MAXCOMMANDLENGTH 16
+// #define SERIALCOMMAND_DEBUG 1
+
 #include <SerialCommand.h>
 #include "DHT.h"
 #include "arduino_base64.hpp"
 #include "microlzw.h"
-
+#include "I2Cbus.h"
 /*
 Author: Orestes Sanchez <miceno.atreides@gmail.com>
 */
@@ -17,8 +23,12 @@ typedef struct {
 } command_entry_t;
 
 
-#define DHTPIN D6      // Digital pin connected to the DHT sensor
+#define I2C_SCL PIN_WIRE_SCL
+#define I2C_SDA PIN_WIRE_SDA
+
+#define DHTPIN 12      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22  // DHT 22  (AM2302), AM2321
+#define BAUD_RATE 115200
 
 Adafruit_MLX90640 *mlx = new Adafruit_MLX90640();
 SerialCommand sCmd;  // The demo SerialCommand object
@@ -51,6 +61,8 @@ boolean start_dht = true;
 boolean start_mlx = true;
 boolean start_day = true;
 
+int i2cbusstatus;
+
 // uncomment *one* of the below
 //#define PRINT_TEMPERATURES
 #define PRINT_ASCIIART
@@ -61,6 +73,7 @@ boolean start_day = true;
 Adafruit_MLX90640 *setup_mlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
                              mlx90640_resolution_t p_resolution = MLX90640_ADC_18BIT,
                              mlx90640_refreshrate_t p_refresh_rate = MLX90640_2_HZ) {
+  Wire.begin(I2C_SDA, I2C_SCL);
   if (!mlx->begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
     Serial.println("MLX90640 not found!");
     return NULL;
@@ -236,6 +249,14 @@ void loop_mlx() {
       // show_median(frame);
     } else {
       Serial.println("Failed");
+      // Clear bus before Wire.begin()
+      i2cbusstatus = I2Cbus_clear(I2C_SDA, I2C_SCL);
+      Serial.println(I2Cbus_statusstr(i2cbusstatus));
+
+      // Enable I2C
+      Wire.begin(SDA, SCL);  // For ESP8266 NodeMCU boards [VDD to 3V3, GND to GND, SDA to D2, SCL to D1]
+      delay(500);
+      ESP.reset();
       return;
     }
   }
@@ -446,14 +467,12 @@ void show_help() {
   Serial setup
 */
 void setup_serial() {
-  Serial.begin(115200);
+  Serial.begin(BAUD_RATE);
   Serial.println();
-  Serial.print("Waiting for Serial line");
   while (!Serial) {
-    Serial.print(".");
-    delay(10);
+    Serial.println("Waiting for Serial line");
+    delay(100);
   }
-  Serial.println();
 }
 
 void setup() {
@@ -470,4 +489,5 @@ void loop() {
   loop_dht();
   loop_mlx();
   loop_serial_commands();
+  Serial.flush();
 }

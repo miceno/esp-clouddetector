@@ -219,19 +219,19 @@ void send_base64_encode(uint8_t *data, int size) {
   free(msg_base64);
 }
 
-void *decode_base64(char *input) {
-  auto output_size = base64::decodeLength(input);
-  uint8_t *output = (uint8_t *)malloc(output_size);
-  // Serial.printf("input size: %d\n", strlen(input));
+uint8_t *decode_base64(char *input, size_t *output_size) {
+  *output_size = base64::decodeLength(input);
+  uint8_t *output = (uint8_t *)malloc(sizeof(uint8_t) * (*output_size));
+  Serial.printf("string input size=%d,", strlen(input));
   base64::decode(input, output);
-  // Serial.printf("decoded size: %d\n", output_size);
+  Serial.printf("binary decoded size=%d,", *output_size);
   return output;
 }
 
 void test_base64_encode(uint8_t *data, int size) {
   char *output = encode_base64(data, size);
-
-  void *test = decode_base64(output);
+  size_t decode_size;
+  uint8_t *test = decode_base64(output, &decode_size);
   if (memcmp(test, frame, size) == 0) {
     Serial.println("OK: Encoding and decoding");
   } else {
@@ -427,12 +427,53 @@ char *compress_irb_image(uint8_t *data, size_t size) {
   // Serial.printf("base64_size=%d ", strlen(msg_base64));
   return msg_base64;
 }
+
+uint8_t *decompress_irb_image(char *data, size_t *output_size) {
+  // decode base 64 to binary stream
+  size_t binary_size;
+  uint8_t *binary_data = decode_base64(data, &binary_size);
+  Serial.printf("binary_size=%d\n", binary_size);
+
+  // 2. decompress data
+  uint8_t *decompressed = (uint8_t *)malloc(sizeof(float) * (frame_size + 1));
+  mlzw_decompress_binary(binary_data, binary_size, decompressed, output_size, LZW_DICT_SIZE);
+  Serial.printf("output_size=%d\n", output_size);
+  free(binary_data);
+  return decompressed;
+}
+
 /*
   Test IR image encoding and decoding
 */
 void send_irt_image() {
   Serial.print("irt:");
   test_base64_encode((uint8_t *)frame, sizeof(float) * frame_size);
+}
+
+/*
+  Test IR image encoding and decoding
+*/
+void send_irbt_image() {
+  Serial.print("irbt:");
+  test_compress_decompress_image((uint8_t *)frame, sizeof(float) * frame_size);
+}
+
+void test_compress_decompress_image(uint8_t *data, size_t size) {
+  const char *result;
+  size_t output_size;
+
+  char *compressed_text = compress_irb_image(data, size);
+  uint8_t *binary_frame = decompress_irb_image(compressed_text, &output_size);
+  if (memcmp(binary_frame, data, size) == 0) {
+    result = "OK";
+  } else {
+    result = "ERROR";
+  }
+
+  Serial.printf("%s: Compressing and decompressing", result);
+
+  free(compressed_text);
+  free(binary_frame);
 }
 
 

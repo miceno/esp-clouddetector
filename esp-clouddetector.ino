@@ -180,15 +180,15 @@ void show_frame(float *frame) {
 #endif
 #ifdef PRINT_ASCIIART
       char c = '&';
-      if (t < 20) c = ' ';
+      if (t < 20)      c = ' ';
       else if (t < 23) c = '.';
-      else if (t < 25) c = '-';
-      else if (t < 27) c = '*';
+      else if (t < 25) c = '_';
+      else if (t < 27) c = '-';
       else if (t < 29) c = '+';
-      else if (t < 31) c = 'x';
-      else if (t < 33) c = '%';
-      else if (t < 35) c = '#';
-      else if (t < 37) c = 'X';
+      else if (t < 31) c = 'o';
+      else if (t < 33) c = 'x';
+      else if (t < 35) c = '*';
+      else if (t < 37) c = 'O';
       Serial.print(c);
 #endif
     }
@@ -393,6 +393,7 @@ void send_data() {
 void send_ir_image() {
   Serial.print("ir:");
   show_frame(frame);
+  Serial.println();
 }
 
 /*

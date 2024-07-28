@@ -22,9 +22,47 @@ typedef struct {
   const char *description;
 } command_entry_t;
 
+/*!
+ *  @brief  Class that stores state and functions for DHT
+ */
+class LightSensor {
+public:
+  LightSensor(uint8_t pin);
+  void begin(uint8_t pin);
+  void begin(void);
+  bool read_status(void);
+private:
+  uint8_t _pin = UINT8_MAX;
+};
+
+LightSensor::LightSensor(uint8_t pin) {
+  _pin = pin;
+}
+
+void LightSensor::begin(uint8_t pin) {
+  _pin = pin;
+  pinMode(_pin, INPUT);
+}
+
+void LightSensor::begin(void) {
+  begin(_pin);
+}
+
+bool LightSensor::read_status(void) {
+  // Read data as a boolean:
+  // true  : if the sensor value is > 0,
+  // false : if sensorvalue <= 0.
+  int value = digitalRead(_pin);
+  // Serial.print("day_status=");
+  // Serial.println(value);
+  return (value == LOW);
+}
+
 
 #define I2C_SCL PIN_WIRE_SCL
 #define I2C_SDA PIN_WIRE_SDA
+
+#define DAYPIN D0  // Digital pin connected to the photoresistor sensor
 
 #define DHTPIN D5      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22  // DHT 22  (AM2302), AM2321
@@ -38,6 +76,8 @@ SerialCommand sCmd;  // The demo SerialCommand object
 // tweak the timings for faster processors.  This parameter is no longer needed
 // as the current DHT reading algorithm adjusts itself to work on faster procs.
 DHT dht(DHTPIN, DHTTYPE);
+
+LightSensor day(DAYPIN);
 
 // MLX90640 camera is 32 x 24
 const int IR_IMAGE_COLS = 32;
@@ -277,11 +317,11 @@ void setup_dht() {
 
 void loop_dht() {
   if (start_dht) {
-    read_data();
+    read_data_dht();
   }
 }
 
-void read_data() {
+void read_data_dht() {
   float h = dht.readHumidity();
   // Read temperature as Celsius (the default)
   float t = dht.readTemperature();
@@ -292,6 +332,30 @@ void read_data() {
   }
   humidity = h;
   temp = t;
+}
+
+/* 
+  Photoresistor code
+*/
+
+void setup_day() {
+  day.begin();
+}
+
+void loop_day() {
+  if (start_day) {
+    read_data_day();
+  }
+}
+
+void read_data_day() {
+  bool day_status = day.read_status();
+
+  if (isnan(day_status)) {
+    Serial.println(F("Failed to read from photoresistor sensor!"));
+    return;
+  }
+  is_day = day_status;
 }
 
 /*
@@ -389,7 +453,7 @@ void send_data() {
   Serial.print(F(",hum:"));
   Serial.print(humidity);
 
-  Serial.print(F(",day:"));
+  Serial.print(F(",is_day:"));
   Serial.print(is_day);
   Serial.println();
 }
@@ -424,19 +488,23 @@ void send_irt_image() {
   Show status data over the serial line.
 */
 void show_ping() {
+  const char* ENABLED="on";
+  const char* DISABLED="off";
   Serial.print(VERSION);
+  Serial.print(F(",sensors=[mlx="));
+  Serial.print(start_mlx ? ENABLED : DISABLED);
   Serial.print(F(",dht="));
-  Serial.print(start_dht);
-  Serial.print(F(",mlx="));
-  Serial.print(start_mlx);
+  Serial.print(start_dht ? ENABLED : DISABLED);
   Serial.print(F(",day="));
-  Serial.print(start_day);
-  Serial.print(F(",cloud="));
+  Serial.print(start_day ? ENABLED : DISABLED);
+  Serial.print(F("],cloud="));
   Serial.print(calculate_median(frame, frame_size));
   Serial.print(F(",temp="));
   Serial.print(temp);
   Serial.print(F(",hum="));
-  Serial.println(humidity);
+  Serial.print(humidity);
+  Serial.print(F(",is_day="));
+  Serial.println(is_day);
   // show_mlx_status();
 }
 
@@ -472,6 +540,8 @@ void setup() {
   setup_dht();
   delay(50);
   setup_mlx();
+  setup_day();
+  delay(50);
   setup_serial_commands();
 }
 
@@ -480,5 +550,6 @@ void loop() {
   loop_dht();
   loop_mlx();
   loop_serial_commands();
+  loop_day();
   Serial.flush();
 }

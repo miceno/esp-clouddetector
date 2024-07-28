@@ -26,7 +26,7 @@ typedef struct {
 #define I2C_SCL PIN_WIRE_SCL
 #define I2C_SDA PIN_WIRE_SDA
 
-#define DHTPIN 12      // Digital pin connected to the DHT sensor
+#define DHTPIN D5      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22  // DHT 22  (AM2302), AM2321
 #define BAUD_RATE 115200
 
@@ -47,13 +47,13 @@ const int frame_size = IR_IMAGE_COLS * IR_IMAGE_ROWS;
 // Compression dict size
 const int LZW_DICT_SIZE = 1024;
 
-const char *VERSION = "cloud-0.3.0";
+const char *VERSION = "cloud-0.3.0-wemos";
 
 // Internal variables for the status of the detector.
-float frame[frame_size];  // buffer for full frame of temperatures
-float temp = 0.0;         // current temperature from DHT22 sensor
-float humidity = 0.0;     // current humidity from DHT22 sensor
-boolean is_day = false;   // represents if it is day or night according to the sensor
+float *frame = (float *)malloc(frame_size * sizeof(float));  // buffer for full frame of temperatures
+float temp = 0.0;                                            // current temperature from DHT22 sensor
+float humidity = 0.0;                                        // current humidity from DHT22 sensor
+boolean is_day = false;                                      // represents if it is day or night according to the sensor
 
 // start_SENSOR variables control if the controller is updating its internal
 // state using data from the sensor.
@@ -75,10 +75,10 @@ Adafruit_MLX90640 *setup_mlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
                              mlx90640_refreshrate_t p_refresh_rate = MLX90640_2_HZ) {
   Wire.begin(I2C_SDA, I2C_SCL);
   if (!mlx->begin(MLX90640_I2CADDR_DEFAULT, &Wire)) {
-    Serial.println("MLX90640 not found!");
+    Serial.println(F("MLX90640 not found!"));
     return NULL;
   }
-  Serial.println("Found Adafruit MLX90640");
+  Serial.println(F("Found Adafruit MLX90640"));
 
   mlx->setMode(p_mode);
   mlx->setResolution(p_resolution);
@@ -103,46 +103,46 @@ command_entry_t COMMANDS[] = {
 size_t MAX_COMMANDS = sizeof(COMMANDS) / sizeof(COMMANDS[0]);
 
 void show_mlx_status() {
-  Serial.print(",mlx_serial=");
+  Serial.print(F(",mlx_serial="));
   Serial.print(mlx->serialNumber[0], HEX);
   Serial.print(mlx->serialNumber[1], HEX);
   Serial.print(mlx->serialNumber[2], HEX);
 
-  Serial.print(",mlx_mode=");
+  Serial.print(F(",mlx_mode="));
   if (mlx->getMode() == MLX90640_CHESS) {
-    Serial.print("chess");
+    Serial.print(F("chess"));
   } else {
-    Serial.print("interleave");
+    Serial.print(F("interleave"));
   }
 
-  Serial.print(",mlx_resolution=");
+  Serial.print(F(",mlx_resolution="));
   mlx90640_resolution_t res = mlx->getResolution();
   switch (res) {
-    case MLX90640_ADC_16BIT: Serial.print("16bit"); break;
-    case MLX90640_ADC_17BIT: Serial.print("17bit"); break;
-    case MLX90640_ADC_18BIT: Serial.print("18bit"); break;
-    case MLX90640_ADC_19BIT: Serial.print("19bit"); break;
+    case MLX90640_ADC_16BIT: Serial.print(F("16bit")); break;
+    case MLX90640_ADC_17BIT: Serial.print(F("17bit")); break;
+    case MLX90640_ADC_18BIT: Serial.print(F("18bit")); break;
+    case MLX90640_ADC_19BIT: Serial.print(F("19bit")); break;
   }
-  Serial.print(",mlx_frame_rate=");
+  Serial.print(F(",mlx_frame_rate="));
   mlx90640_refreshrate_t rate = mlx->getRefreshRate();
   switch (rate) {
-    case MLX90640_0_5_HZ: Serial.print("0.5Hz"); break;
-    case MLX90640_1_HZ: Serial.print("1Hz"); break;
-    case MLX90640_2_HZ: Serial.print("2Hz"); break;
-    case MLX90640_4_HZ: Serial.print("4Hz"); break;
-    case MLX90640_8_HZ: Serial.print("8Hz"); break;
-    case MLX90640_16_HZ: Serial.print("16Hz"); break;
-    case MLX90640_32_HZ: Serial.print("32Hz"); break;
-    case MLX90640_64_HZ: Serial.print("64Hz"); break;
+    case MLX90640_0_5_HZ: Serial.print(F("0.5Hz")); break;
+    case MLX90640_1_HZ: Serial.print(F("1Hz")); break;
+    case MLX90640_2_HZ: Serial.print(F("2Hz")); break;
+    case MLX90640_4_HZ: Serial.print(F("4Hz")); break;
+    case MLX90640_8_HZ: Serial.print(F("8Hz")); break;
+    case MLX90640_16_HZ: Serial.print(F("16Hz")); break;
+    case MLX90640_32_HZ: Serial.print(F("32Hz")); break;
+    case MLX90640_64_HZ: Serial.print(F("64Hz")); break;
   }
   Serial.println();
 }
 
 void show_mlx_data() {
-  Serial.println("===================================");
-  Serial.print("MLX Ambient temperature = ");
+  Serial.println(F("==================================="));
+  Serial.print(F("MLX Ambient temperature = "));
   Serial.print(mlx->getTa(false));  // false = no new frame capture
-  Serial.println(" degC");
+  Serial.println(F(" degC"));
   Serial.println();
   Serial.println();
   show_frame(frame);
@@ -176,11 +176,11 @@ void show_frame(float *frame) {
       float t = frame[h * IR_IMAGE_COLS + w];
 #ifdef PRINT_TEMPERATURES
       Serial.print(t, 1);
-      Serial.print(", ");
+      Serial.print(F(", "));
 #endif
 #ifdef PRINT_ASCIIART
       char c = '&';
-      if (t < 20)      c = ' ';
+      if (t < 20) c = ' ';
       else if (t < 23) c = '.';
       else if (t < 25) c = '_';
       else if (t < 27) c = '-';
@@ -199,9 +199,9 @@ void show_frame(float *frame) {
 void show_median(float *frame) {
   float median = calculate_median(frame, frame_size);
 
-  Serial.print("Median frame temperature = ");
+  Serial.print(F("Median frame temperature = "));
   Serial.print(median);
-  Serial.println(" degC");
+  Serial.println(F(" degC"));
   Serial.println();
 }
 
@@ -223,9 +223,12 @@ void send_base64_encode(uint8_t *data, int size) {
 uint8_t *decode_base64(char *input, size_t *output_size) {
   *output_size = base64::decodeLength(input);
   uint8_t *output = (uint8_t *)malloc(sizeof(uint8_t) * (*output_size));
-  Serial.printf("string input size=%d,", strlen(input));
+  Serial.print(F("string input size="));
+  Serial.print(strlen(input));
   base64::decode(input, output);
-  Serial.printf("binary decoded size=%d,", *output_size);
+  Serial.print(F(",binary decoded size="));
+  Serial.print(*output_size);
+  Serial.print(F(","));
   return output;
 }
 
@@ -234,9 +237,9 @@ void test_base64_encode(uint8_t *data, int size) {
   size_t decode_size;
   uint8_t *test = decode_base64(output, &decode_size);
   if (memcmp(test, frame, size) == 0) {
-    Serial.println("OK: Encoding and decoding");
+    Serial.println(F("OK: Encoding and decoding"));
   } else {
-    Serial.println("ERROR: Encoding and decoding");
+    Serial.println(F("ERROR: Encoding and decoding"));
   }
 
   free(output);
@@ -249,7 +252,7 @@ void loop_mlx() {
     if (mlx && mlx->getFrame(frame) == 0) {
       // show_median(frame);
     } else {
-      Serial.println("Failed");
+      Serial.println(F("Failed"));
       // Clear bus before Wire.begin()
       i2cbusstatus = I2Cbus_clear(I2C_SDA, I2C_SCL);
       Serial.println(I2Cbus_statusstr(i2cbusstatus));
@@ -322,9 +325,11 @@ void start_data_collection() {
     } else {
       return;
     }
-    Serial.printf("STARTING %s SENSOR\n", arg);
+    Serial.print(F("STARTING "));
+    Serial.print(arg);
+    Serial.println(F(" SENSOR"));
   } else {
-    Serial.println("STARTING ALL SENSORS");
+    Serial.println(F("STARTING ALL SENSORS"));
     start_dht = start_mlx = start_day = true;
   }
 }
@@ -347,9 +352,11 @@ void stop_data_collection() {
     } else {
       return;
     }
-    Serial.printf("STOPING %s SENSOR\n", arg);
+    Serial.print(F("STOPING "));
+    Serial.print(arg);
+    Serial.println(F(" SENSOR"));
   } else {
-    Serial.println("STOPING ALL SENSORS");
+    Serial.println(F("STOPING ALL SENSORS"));
     start_dht = start_mlx = start_day = false;
   }
 }
@@ -362,9 +369,9 @@ void loop_serial_commands() {
   Default handler for commands. This gets set as the default handler, and gets called when no other command matches.
 */
 void unrecognized(const char *command) {
-  Serial.print("NACK[");
+  Serial.print(F("NACK["));
   Serial.print(command);
-  Serial.println("]");
+  Serial.println(F("]"));
 }
 
 
@@ -372,17 +379,17 @@ void unrecognized(const char *command) {
   Send sensor data over the serial line.
 */
 void send_data() {
-  Serial.print("cloud:");
+  Serial.print(F("cloud:"));
   float median = calculate_median(frame, frame_size);
   Serial.print(median);
 
-  Serial.print(",temp:");
+  Serial.print(F(",temp:"));
   Serial.print(temp);
 
-  Serial.print(",hum:");
+  Serial.print(F(",hum:"));
   Serial.print(humidity);
 
-  Serial.print(",day:");
+  Serial.print(F(",day:"));
   Serial.print(is_day);
   Serial.println();
 }
@@ -391,7 +398,7 @@ void send_data() {
   Send raw IR as ASCII data over the serial line.
 */
 void send_ir_image() {
-  Serial.print("ir:");
+  Serial.print(F("ir:"));
   show_frame(frame);
   Serial.println();
 }
@@ -400,98 +407,37 @@ void send_ir_image() {
   Send raw IR as base64 data over the serial line.
 */
 void send_irx_image() {
-  Serial.print("irx:");
+  Serial.print(F("irx:"));
   send_base64_encode((uint8_t *)frame, sizeof(float) * frame_size);
 }
 
-/*
-  Send raw IR as binary data over the serial line.
-*/
-void send_irb_image() {
-  Serial.print("irb:");
-  char *msg_base64 = compress_irb_image((uint8_t *)frame, sizeof(float) * frame_size);
-  Serial.println(msg_base64);
-  free(msg_base64);
-}
-
-char *compress_irb_image(uint8_t *data, size_t size) {
-  uint8_t *compressed = (uint8_t *)malloc(size);
-  size_t comp_size = 0;
-
-  Serial.printf("size=%d,", size);
-  mlzw_compress_binary(data, size, compressed, &comp_size, LZW_DICT_SIZE);
-  Serial.printf("comp_size=%d,", comp_size);
-  char *msg_base64 = encode_base64(compressed, comp_size);
-  free(compressed);
-  Serial.print("ratio=");
-  Serial.print(1.0 * comp_size / size * 100.0);
-  Serial.print(",");
-  Serial.printf("base64_size=%d,", strlen(msg_base64));
-  return msg_base64;
-}
-
-uint8_t *decompress_irb_image(char *data, size_t *output_size) {
-  // decode base 64 to binary stream
-  size_t binary_size;
-  uint8_t *binary_data = decode_base64(data, &binary_size);
-  Serial.printf("binary_size=%d\n", binary_size);
-
-  // 2. decompress data
-  uint8_t *decompressed = (uint8_t *)malloc(sizeof(float) * (frame_size + 1));
-  mlzw_decompress_binary(binary_data, binary_size, decompressed, output_size, LZW_DICT_SIZE);
-  Serial.printf("output_size=%d\n", output_size);
-  free(binary_data);
-  return decompressed;
-}
 
 /*
   Test IR image encoding and decoding
 */
 void send_irt_image() {
-  Serial.print("irt:");
+  Serial.print(F("irt:"));
   test_base64_encode((uint8_t *)frame, sizeof(float) * frame_size);
 }
-
-/*
-  Test IR image encoding and decoding
-*/
-void send_irbt_image() {
-  Serial.print("irbt:");
-  test_compress_decompress_image((uint8_t *)frame, sizeof(float) * frame_size);
-}
-
-void test_compress_decompress_image(uint8_t *data, size_t size) {
-  const char *result;
-  size_t output_size;
-
-  char *compressed_text = compress_irb_image(data, size);
-  uint8_t *binary_frame = decompress_irb_image(compressed_text, &output_size);
-  if (memcmp(binary_frame, data, size) == 0) {
-    result = "OK";
-  } else {
-    result = "ERROR";
-  }
-
-  Serial.printf("%s: Compressing and decompressing", result);
-
-  free(compressed_text);
-  free(binary_frame);
-}
-
 
 /*
   Show status data over the serial line.
 */
 void show_ping() {
   Serial.print(VERSION);
-  Serial.printf(",dht=%d,mlx=%d,day=%d", start_dht, start_mlx, start_day);
-  Serial.print(",cloud=");
+  Serial.print(F(",dht="));
+  Serial.print(start_dht);
+  Serial.print(F(",mlx="));
+  Serial.print(start_mlx);
+  Serial.print(F(",day="));
+  Serial.print(start_day);
+  Serial.print(F(",cloud="));
   Serial.print(calculate_median(frame, frame_size));
-  Serial.print(",temp=");
+  Serial.print(F(",temp="));
   Serial.print(temp);
-  Serial.print(",hum=");
-  Serial.print(humidity);
-  show_mlx_status();
+  Serial.print(F(",hum="));
+  Serial.println(humidity);
+  // show_mlx_status();
 }
 
 /*
@@ -501,7 +447,9 @@ void show_help() {
   show_ping();
   for (int i = 0; i < MAX_COMMANDS; i++) {
     command_entry_t command = COMMANDS[i];
-    Serial.printf("%s: %s\n", command.name, command.description);
+    Serial.print(command.name);
+    Serial.print(" ");
+    Serial.println(command.description);
   }
   Serial.println();
 }
@@ -513,7 +461,7 @@ void setup_serial() {
   Serial.begin(BAUD_RATE);
   Serial.println();
   while (!Serial) {
-    Serial.println("Waiting for Serial line");
+    Serial.println(F("Waiting for Serial line"));
     delay(100);
   }
 }

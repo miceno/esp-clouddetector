@@ -28,9 +28,9 @@ typedef struct {
   float b;
 } calibration_t;
 
-const char *VERSION = "cloud-0.3.0-wemos";
+const char *VERSION = "cloud-0.4.0-wemos";
 
-#define BAUD_RATE 115200
+#define BAUD_RATE 460800
 
 // Initialize MLX90640 camera
 // MLX90640 camera is 32 x 24
@@ -107,7 +107,8 @@ command_entry_t COMMANDS[] = {
   { "PING", show_ping, "Echo current version" },
   { "START", start_data_collection, "Start data collection" },
   { "STOP", stop_data_collection, "Stop data collection" },
-  { "HELP", show_help, "Show available commands" }
+  { "HELP", show_help, "Show available commands" },
+  { "IRCAL", set_calibration, "Set IR calibration data" }
 };
 
 size_t MAX_COMMANDS = sizeof(COMMANDS) / sizeof(COMMANDS[0]);
@@ -397,6 +398,29 @@ void stop_data_collection() {
   }
 }
 
+/*
+  Set calibration data for MLX camera
+*/
+
+void set_calibration(void) {
+  String calibration_a;
+  String calibration_b;
+
+  calibration_a = sCmd.next();
+  calibration_b = sCmd.next();
+  if (calibration_a != NULL && calibration_b != NULL) {
+    calibration.a = atof(calibration_a.c_str());
+    calibration.b = atof(calibration_b.c_str());
+    Serial.print("Calibration set:");
+    Serial.print(calibration_a);
+    Serial.print(", ");
+    Serial.println(calibration_b);
+  } else {
+    String msg = String("IRCAL:")+calibration_a+","+calibration_b;
+    unrecognized(msg.c_str());
+  }
+}
+
 void loop_serial_commands() {
   sCmd.readSerial();  // We don't do much, just process serial commands
 }
@@ -469,6 +493,10 @@ void show_ping() {
   Serial.print(start_dht ? ENABLED : DISABLED);
   Serial.print(F(",ldr="));
   Serial.print(start_ldr ? ENABLED : DISABLED);
+  Serial.print(F("],calibration=["));
+  Serial.print(calibration.a);
+  Serial.print(F(", "));
+  Serial.print(calibration.b);
   Serial.print(F("],data="));
   read_data();
   // show_mlx_status();

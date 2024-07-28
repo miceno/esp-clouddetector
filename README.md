@@ -29,7 +29,10 @@ In order to configure the input and output ports:
 The code reads continuously the data from DHT22 (temperature and humidity sensor: `dht`), MLX90640 (thermal camera: `mlx`) and LDR (light-dependent resistor: `ldr`), and
 stores it internally on RAM. When there is a request using a command, available data is used to calculate or return values.
 
-## Avaiable sensors
+Each pixel in the IR camera data frame must be adjusted according to the
+device calibration. Calibration is defined by two parameters: slope and shift.
+
+## Available sensors
 
 The name of sensors is:
 * temperature and humidity: `dht`.
@@ -106,7 +109,7 @@ command, subsequent request to `READ` will return the last collected data before
 
 `HELP`: Show a list of  available commands.
 
-## Ascii Art
+## ASCII Art
 
 Here it is a table showing the mapping of temperature values to ASCII: the higher the temperature, the higher the chars:
 

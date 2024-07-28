@@ -8,8 +8,9 @@
 #include <SerialCommand.h>
 #include "DHT.h"
 #include "arduino_base64.hpp"
-#include "microlzw.h"
 #include "I2Cbus.h"
+#include "lightsensor.h"
+
 /*
 Author: Orestes Sanchez <miceno.atreides@gmail.com>
 */
@@ -22,41 +23,49 @@ typedef struct {
   const char *description;
 } command_entry_t;
 
-#define I2C_SCL PIN_WIRE_SCL
-#define I2C_SDA PIN_WIRE_SDA
+typedef struct {
+  float a;
+  float b;
+} calibration_t;
 
-#define LDRPIN D0  // Digital pin connected to the LDR (light-dependent resistors)
+const char *VERSION = "cloud-0.3.0-wemos";
 
-#define DHTPIN D5      // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22  // DHT 22  (AM2302), AM2321
 #define BAUD_RATE 115200
 
-Adafruit_MLX90640 *mlx = new Adafruit_MLX90640();
-SerialCommand sCmd;  // The demo SerialCommand object
-
-// Initialize DHT sensor.
-// Note that older versions of this library took an optional third parameter to
-// tweak the timings for faster processors.  This parameter is no longer needed
-// as the current DHT reading algorithm adjusts itself to work on faster procs.
-DHT dht(DHTPIN, DHTTYPE);
-
-LightSensor ldr(LDRPIN);
-
+// Initialize MLX90640 camera
 // MLX90640 camera is 32 x 24
 const int IR_IMAGE_COLS = 32;
 const int IR_IMAGE_ROWS = 24;
 const int frame_size = IR_IMAGE_COLS * IR_IMAGE_ROWS;
 
-// Compression dict size
-const int LZW_DICT_SIZE = 1024;
+#define I2C_SCL PIN_WIRE_SCL
+#define I2C_SDA PIN_WIRE_SDA
 
-const char *VERSION = "cloud-0.3.0-wemos";
+Adafruit_MLX90640 *mlx = new Adafruit_MLX90640();
+
+// Initialize DHT sensor.
+// Note that older versions of this library took an optional third parameter to
+// tweak the timings for faster processors.  This parameter is no longer needed
+// as the current DHT reading algorithm adjusts itself to work on faster procs.
+#define DHTPIN D5      // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT22  // DHT 22  (AM2302), AM2321
+
+DHT dht(DHTPIN, DHTTYPE);
+
+// Initialize LDR sensor
+#define LDRPIN D0  // Digital pin connected to the LDR (light-dependent resistors)
+
+LightSensor ldr(LDRPIN);
+
+// Initialize Serial command processor
+SerialCommand sCmd;  // The demo SerialCommand object
 
 // Internal variables for the status of the detector.
 float *frame = (float *)malloc(frame_size * sizeof(float));  // buffer for full frame of temperatures
 float temp = 0.0;                                            // current temperature from DHT22 sensor
 float humidity = 0.0;                                        // current humidity from DHT22 sensor
 boolean is_night = false;                                    // represents if it is day or night according to the sensor
+calibration_t calibration;
 
 // start_SENSOR variables control if the controller is updating its internal
 // state using data from the sensor.
@@ -69,43 +78,6 @@ int i2cbusstatus;
 // uncomment *one* of the below
 //#define PRINT_TEMPERATURES
 #define PRINT_ASCIIART
-
-/*!
- *  @brief  Class that stores state and functions for the LDR (light-dependent resistor)
- */
-class LightSensor {
-public:
-  LightSensor(uint8_t pin);
-  void begin(uint8_t pin);
-  void begin(void);
-  bool read_status(void);
-private:
-  uint8_t _pin = UINT8_MAX;
-};
-
-LightSensor::LightSensor(uint8_t pin) {
-  _pin = pin;
-}
-
-void LightSensor::begin(uint8_t pin) {
-  _pin = pin;
-  pinMode(_pin, INPUT);
-}
-
-void LightSensor::begin(void) {
-  begin(_pin);
-}
-
-bool LightSensor::read_status(void) {
-  // Read data as a boolean:
-  // true  : if the sensor value is > 0,
-  // false : if sensorvalue <= 0.
-  int value = digitalRead(_pin);
-  // Serial.print("ldr_status=");
-  // Serial.println(value);
-  return (value == LOW);
-}
-
 
 /*
   MLX 90640 code
@@ -131,8 +103,6 @@ command_entry_t COMMANDS[] = {
   { "READ", read_data, "Read summarized sensor data" },
   { "IR", send_ir_image, "Return IR data as an ASCII art" },
   { "IRX", send_irx_image, "Return IR data as a base64 stream" },
-  // { "IRB", send_irb_image, "Return IR data as a base64 lzw-compressed stream" },
-  // { "IRBT", send_irbt_image, "Test IR data as a base64 lzw-compressed stream" },
   { "IRT", send_irt_image, "Test IR base64 binary encoding and decoding" },
   { "PING", show_ping, "Echo current version" },
   { "START", start_data_collection, "Start data collection" },

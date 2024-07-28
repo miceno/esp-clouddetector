@@ -256,6 +256,8 @@ char *encode_base64(uint8_t *data, int size) {
 
 void send_base64_encode(uint8_t *data, int size) {
   char *msg_base64 = encode_base64(data, size);
+  Serial.print(strlen(msg_base64));
+  Serial.print(":");
   Serial.println(msg_base64);
   free(msg_base64);
 }

@@ -53,7 +53,7 @@ bool LightSensor::read_status(void) {
   // true  : if the sensor value is > 0,
   // false : if sensorvalue <= 0.
   int value = digitalRead(_pin);
-  // Serial.print("day_status=");
+  // Serial.print("ldr_status=");
   // Serial.println(value);
   return (value == LOW);
 }
@@ -62,7 +62,7 @@ bool LightSensor::read_status(void) {
 #define I2C_SCL PIN_WIRE_SCL
 #define I2C_SDA PIN_WIRE_SDA
 
-#define DAYPIN D0  // Digital pin connected to the photoresistor sensor
+#define LDRPIN D0  // Digital pin connected to the LDR (light-dependent resistors)
 
 #define DHTPIN D5      // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22  // DHT 22  (AM2302), AM2321
@@ -77,7 +77,7 @@ SerialCommand sCmd;  // The demo SerialCommand object
 // as the current DHT reading algorithm adjusts itself to work on faster procs.
 DHT dht(DHTPIN, DHTTYPE);
 
-LightSensor day(DAYPIN);
+LightSensor ldr(LDRPIN);
 
 // MLX90640 camera is 32 x 24
 const int IR_IMAGE_COLS = 32;
@@ -93,13 +93,13 @@ const char *VERSION = "cloud-0.3.0-wemos";
 float *frame = (float *)malloc(frame_size * sizeof(float));  // buffer for full frame of temperatures
 float temp = 0.0;                                            // current temperature from DHT22 sensor
 float humidity = 0.0;                                        // current humidity from DHT22 sensor
-boolean is_day = false;                                      // represents if it is day or night according to the sensor
+boolean is_night = false;                                    // represents if it is day or night according to the sensor
 
 // start_SENSOR variables control if the controller is updating its internal
 // state using data from the sensor.
 boolean start_dht = true;
 boolean start_mlx = true;
-boolean start_day = true;
+boolean start_ldr = true;
 
 int i2cbusstatus;
 
@@ -128,7 +128,7 @@ Adafruit_MLX90640 *setup_mlx(mlx90640_mode_t p_mode = MLX90640_CHESS,
 }
 
 command_entry_t COMMANDS[] = {
-  { "READ", send_data, "Read summarized sensor data" },
+  { "READ", read_data, "Read summarized sensor data" },
   { "IR", send_ir_image, "Return IR data as an ASCII art" },
   { "IRX", send_irx_image, "Return IR data as a base64 stream" },
   // { "IRB", send_irb_image, "Return IR data as a base64 lzw-compressed stream" },
@@ -338,24 +338,24 @@ void read_data_dht() {
   Photoresistor code
 */
 
-void setup_day() {
-  day.begin();
+void setup_ldr() {
+  ldr.begin();
 }
 
-void loop_day() {
-  if (start_day) {
-    read_data_day();
+void loop_ldr() {
+  if (start_ldr) {
+    read_data_ldr();
   }
 }
 
-void read_data_day() {
-  bool day_status = day.read_status();
+void read_data_ldr() {
+  bool ldr_status = ldr.read_status();
 
-  if (isnan(day_status)) {
+  if (isnan(ldr_status)) {
     Serial.println(F("Failed to read from photoresistor sensor!"));
     return;
   }
-  is_day = day_status;
+  is_night = ldr_status;
 }
 
 /*
@@ -384,8 +384,8 @@ void start_data_collection() {
       start_dht = true;
     } else if (strcmp(sensor_to_start, "MLX") == 0) {
       start_mlx = true;
-    } else if (strcmp(sensor_to_start, "DAY") == 0) {
-      start_day = true;
+    } else if (strcmp(sensor_to_start, "LDR") == 0) {
+      start_ldr = true;
     } else {
       return;
     }
@@ -394,7 +394,7 @@ void start_data_collection() {
     Serial.println(F(" SENSOR"));
   } else {
     Serial.println(F("STARTING ALL SENSORS"));
-    start_dht = start_mlx = start_day = true;
+    start_dht = start_mlx = start_ldr = true;
   }
 }
 
@@ -411,8 +411,8 @@ void stop_data_collection() {
       start_dht = false;
     } else if (strcmp(sensor_to_stop, "MLX") == 0) {
       start_mlx = false;
-    } else if (strcmp(sensor_to_stop, "DAY") == 0) {
-      start_day = false;
+    } else if (strcmp(sensor_to_stop, "LDR") == 0) {
+      start_ldr = false;
     } else {
       return;
     }
@@ -421,7 +421,7 @@ void stop_data_collection() {
     Serial.println(F(" SENSOR"));
   } else {
     Serial.println(F("STOPING ALL SENSORS"));
-    start_dht = start_mlx = start_day = false;
+    start_dht = start_mlx = start_ldr = false;
   }
 }
 
@@ -442,19 +442,19 @@ void unrecognized(const char *command) {
 /*
   Send sensor data over the serial line.
 */
-void send_data() {
-  Serial.print(F("cloud:"));
+void read_data() {
+  Serial.print(F("c:"));
   float median = calculate_median(frame, frame_size);
   Serial.print(median);
 
-  Serial.print(F(",temp:"));
+  Serial.print(F(",t:"));
   Serial.print(temp);
 
-  Serial.print(F(",hum:"));
+  Serial.print(F(",h:"));
   Serial.print(humidity);
 
-  Serial.print(F(",is_day:"));
-  Serial.print(is_day);
+  Serial.print(F(",n:"));
+  Serial.print(is_night);
   Serial.println();
 }
 
@@ -488,23 +488,17 @@ void send_irt_image() {
   Show status data over the serial line.
 */
 void show_ping() {
-  const char* ENABLED="on";
-  const char* DISABLED="off";
+  const char *ENABLED = "on";
+  const char *DISABLED = "off";
   Serial.print(VERSION);
-  Serial.print(F(",sensors=[mlx="));
+  Serial.print(F(",status=[mlx="));
   Serial.print(start_mlx ? ENABLED : DISABLED);
   Serial.print(F(",dht="));
   Serial.print(start_dht ? ENABLED : DISABLED);
-  Serial.print(F(",day="));
-  Serial.print(start_day ? ENABLED : DISABLED);
-  Serial.print(F("],cloud="));
-  Serial.print(calculate_median(frame, frame_size));
-  Serial.print(F(",temp="));
-  Serial.print(temp);
-  Serial.print(F(",hum="));
-  Serial.print(humidity);
-  Serial.print(F(",is_day="));
-  Serial.println(is_day);
+  Serial.print(F(",ldr="));
+  Serial.print(start_ldr ? ENABLED : DISABLED);
+  Serial.print(F("],data="));
+  read_data();
   // show_mlx_status();
 }
 
@@ -540,7 +534,7 @@ void setup() {
   setup_dht();
   delay(50);
   setup_mlx();
-  setup_day();
+  setup_ldr();
   delay(50);
   setup_serial_commands();
 }
@@ -550,6 +544,6 @@ void loop() {
   loop_dht();
   loop_mlx();
   loop_serial_commands();
-  loop_day();
+  loop_ldr();
   Serial.flush();
 }

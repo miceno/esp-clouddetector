@@ -22,43 +22,6 @@ typedef struct {
   const char *description;
 } command_entry_t;
 
-/*!
- *  @brief  Class that stores state and functions for DHT
- */
-class LightSensor {
-public:
-  LightSensor(uint8_t pin);
-  void begin(uint8_t pin);
-  void begin(void);
-  bool read_status(void);
-private:
-  uint8_t _pin = UINT8_MAX;
-};
-
-LightSensor::LightSensor(uint8_t pin) {
-  _pin = pin;
-}
-
-void LightSensor::begin(uint8_t pin) {
-  _pin = pin;
-  pinMode(_pin, INPUT);
-}
-
-void LightSensor::begin(void) {
-  begin(_pin);
-}
-
-bool LightSensor::read_status(void) {
-  // Read data as a boolean:
-  // true  : if the sensor value is > 0,
-  // false : if sensorvalue <= 0.
-  int value = digitalRead(_pin);
-  // Serial.print("ldr_status=");
-  // Serial.println(value);
-  return (value == LOW);
-}
-
-
 #define I2C_SCL PIN_WIRE_SCL
 #define I2C_SDA PIN_WIRE_SDA
 
@@ -106,6 +69,43 @@ int i2cbusstatus;
 // uncomment *one* of the below
 //#define PRINT_TEMPERATURES
 #define PRINT_ASCIIART
+
+/*!
+ *  @brief  Class that stores state and functions for the LDR (light-dependent resistor)
+ */
+class LightSensor {
+public:
+  LightSensor(uint8_t pin);
+  void begin(uint8_t pin);
+  void begin(void);
+  bool read_status(void);
+private:
+  uint8_t _pin = UINT8_MAX;
+};
+
+LightSensor::LightSensor(uint8_t pin) {
+  _pin = pin;
+}
+
+void LightSensor::begin(uint8_t pin) {
+  _pin = pin;
+  pinMode(_pin, INPUT);
+}
+
+void LightSensor::begin(void) {
+  begin(_pin);
+}
+
+bool LightSensor::read_status(void) {
+  // Read data as a boolean:
+  // true  : if the sensor value is > 0,
+  // false : if sensorvalue <= 0.
+  int value = digitalRead(_pin);
+  // Serial.print("ldr_status=");
+  // Serial.println(value);
+  return (value == LOW);
+}
+
 
 /*
   MLX 90640 code
